@@ -23,9 +23,7 @@ Short-flag version:
 
 	find . -type f | pawk -sB c=0 -E 'print c' 'c += os.stat(f[0]).st_size'
 
-PAWK can also operate on entire files. This is useful for operations on entire files, like converting a file from markdown to HTML:
-
-If we're evaluating statements (via `--statement`) and do not provide a line statement, a default statement accumulates the entire input text into the variable `t`. 
+PAWK can also operate on entire files by passing `-s`. The entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
 
 	cat README.md | \
 		pawk \
