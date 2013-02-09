@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+
+"""
+cat input | pawk [<options>] <expr>
+
+A Python line-processor (like awk).
+
+See https://github.com/alecthomas/pawk for details. Based on
+http://code.activestate.com/recipes/437932/.
+"""
+
+import inspect
+import optparse
+import re
+import sys
+
+
+def process(context, delim, odelim, begin_statement, cmd, end_statement, as_statement, strict):
+    locals().update(context)
+
+    if begin_statement:
+        begin = compile(begin_statement, 'BEGIN', 'exec')
+        eval(begin, globals(), context)
+
+    _codeobj = compile(cmd, 'EXPR', 'exec' if as_statement else 'eval')
+    write = sys.stdout.write
+
+    for numz, line in enumerate(sys.stdin):
+        context['l'] = line
+        context['n'] = numz + 1
+        context['f'] = [w for w in line.strip().split(delim) if w]
+        context['nf'] = len(context['f'])
+        try:
+            result = eval(_codeobj, globals(), context)
+        except:
+            if strict:
+                raise
+            continue
+        if as_statement:
+            continue
+        if result is None or result is False:
+            continue
+        elif isinstance(result, (list, tuple)):
+            result = odelim.join(map(str, result))
+        else:
+            result = str(result)
+        write(result)
+        if not result.endswith('\n'):
+            write('\n')
+
+    if end_statement:
+        end = compile(end_statement, 'END', 'exec')
+        eval(end, globals(), context)
+
+
+def main():
+    parser = optparse.OptionParser()
+    parser.set_usage(__doc__.strip())
+    parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
+    parser.add_option('-F', dest='delim', help='input delimiter', metavar='<delim>', default=None)
+    parser.add_option('-O', dest='delim_out', help='output delimiter', metavar='<delim>', default=' ')
+    parser.add_option('-B', '--begin', help='begin statement', metavar='<statement>')
+    parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
+    parser.add_option('-s', '--statement', action='store_true', help='execute <expr> as a statement instead of an expression')
+    parser.add_option('--strict', action='store_true', help='abort on exceptions')
+
+    context = {}
+
+    options, args = parser.parse_args(sys.argv[1:])
+    if options.imports:
+        for imp in options.imports.split(','):
+            m = __import__(imp.strip(), fromlist=['.'])
+            context.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
+
+    delim = options.delim.decode('string_escape') if options.delim else None
+    odelim = options.delim_out.decode('string_escape')
+
+    cmd = ' '.join(args)
+    if not cmd.strip():
+        if options.statement:
+            context['t'] = ''
+            cmd = 't += l'
+        else:
+            cmd = 'l'
+
+    # Auto-import. This is not smart.
+    all_text = ' '.join([(options.begin or ''), cmd, (options.end or '')])
+    modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
+    for m in modules:
+        try:
+            key = m.split('.')[0]
+            context[key] = __import__(m)
+        except:
+            pass
+
+    process(context, delim, odelim, options.begin, cmd, options.end, options.statement, options.strict)
+
+
+if __name__ == '__main__':
+    main()
+
