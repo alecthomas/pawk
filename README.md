@@ -11,8 +11,8 @@ Print lines matching a pattern:
 
 Field slicing and dicing (here pawk wins because of Python's array slicing):
 
-	ls -l | awk '{print $5, $NF}'
-	ls -l | pawk 'f[4], f[-1]'
+	ls -l | awk '{print $5, $6, $7, $8, $9}'
+	ls -l | pawk 'f[4:]'
 
 Begin and end end actions (in this case, summing the sizes of all files):
 
