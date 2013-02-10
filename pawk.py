@@ -68,7 +68,7 @@ class Action(object):
         if not self.cmd:
             if options.statement:
                 context['t'] = ''
-                self.cmd = 't += l'
+                self.cmd = 't += line'
             else:
                 self.cmd = 'l'
 
@@ -104,14 +104,16 @@ class Action(object):
 
 def process(input, output, begin_statement, action, end_statement, strict):
     """Process a stream."""
-    if begin_statement:
-        begin = compile(begin_statement, 'BEGIN', 'exec')
-        eval(begin, globals(), action.context)
-
-    write = output.write
     try:
-        old_stdout_write = sys.stdout.write
-        sys.stdout.write = write
+        # Override "print"
+        old_stdout = sys.stdout
+        sys.stdout = output
+
+        if begin_statement:
+            begin = compile(begin_statement, 'BEGIN', 'single')
+            eval(begin, globals(), action.context)
+
+        write = output.write
 
         for numz, line in enumerate(input):
             try:
@@ -133,10 +135,10 @@ def process(input, output, begin_statement, action, end_statement, strict):
                 write('\n')
 
         if end_statement:
-            end = compile(end_statement, 'END', 'exec')
+            end = compile(end_statement, 'END', 'single')
             eval(end, globals(), action.context)
     finally:
-        sys.stdout.write = old_stdout_write
+        sys.stdout = old_stdout
 
 
 # For integration tests.

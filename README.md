@@ -2,6 +2,18 @@
 
 PAWK aims to bring the full power of Python to AWK-like line-processing.
 
+Here are some quick examples to show some of the advantages of pawk over AWK.
+
+The first example transforms `/etc/hosts` into a JSON map of host to IP:
+
+	cat /etc/hosts | pawk -sB 'd={}' -E 'json.dumps(d)' '!/^#/ d[f[1]] = f[0]'
+
+And another example showing how to bzip2-compress + base64-encode a file:
+
+	cat pawk.py | pawk -sE 'print base64.encodestring(bz2.compress(t))'
+
+### AWK example translations
+
 Most basic AWK constructs are available. You can find more idiomatic examples below in the example section, but here are a bunch of awk commands and their equivalent pawk commands to get started with:
 
 Print lines matching a pattern:
@@ -22,7 +34,7 @@ Field slicing and dicing (here pawk wins because of Python's array slicing):
 Begin and end end actions (in this case, summing the sizes of all files):
 
 	ls -l | awk 'BEGIN {c = 0} {c += $5} END {print c}'
-	ls -l | pawk -s -B 'c = 0' -E 'print c' 'c += int(f[4])'
+	ls -l | pawk -s -B 'c = 0' -E 'c' 'c += int(f[4])'
 
 Print files where a field matches a numeric expression (in this case where files are > 1024 bytes):
 
@@ -42,7 +54,7 @@ It should be as simple as:
 pip install pawk
 ```
 
-But if that doesn't work, just download the `pawk` file and place it somewhere.
+But if that doesn't work, just download the `pawk.py`, make it execuatable, and place it somewhere in your path.
 
 ## Expression evaluation
 
@@ -61,12 +73,28 @@ eg. `--import os.path` will import all symbols from `os.path`, such as `os.path.
 
 ## Output
 
+### Line actions
+
 The type of the evaluated expression determines how output is displayed:
 
 - `tuple` or `list`: the elements are converted to strings and joined with the output delimiter (`-O`).
 - `None` or `False`: nothing is output for that line.
 - `True`: the original line is output.
 - Any other value is converted to a string.
+
+### Start/end blocks
+
+End and begin blocks are statements, but if the result of the statement is not `None` it will be displayed via `repr()`. This is a useful shortcut for non-string values, but strings will look like their Python representation:
+
+	$ echo -ne 'foo\nbar' | pawk -sE t
+	'foo\nbar'	
+
+Explicitly print the output if this is not desirable:
+
+	$ echo -ne 'foo\nbar' | pawk -sE 'print t'
+	foo
+	bar
+
 
 ## Examples
 
@@ -84,17 +112,13 @@ Print the sum size of all files from stdin:
 		pawk \
 			--statement \
 			--begin 'c=0' \
-			--end 'print c' \
+			--end c \
 			'c += os.stat(f[0]).st_size'
 
 Short-flag version:
 
-	find . -type f | pawk -sB c=0 -E 'print c' 'c += os.stat(f[0]).st_size'
+	find . -type f | pawk -sB c=0 -E c 'c += os.stat(f[0]).st_size'
 
-Transform `/etc/hosts` into a JSON map of host to IP:
-
-	cat /etc/hosts | pawk -sB 'd={}' -E 'print json.dumps(d)' \
-		'if not l.startswith("#"): d[f[1]] = f[0]'
 
 ### Whole-file processing
 
