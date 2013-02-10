@@ -4,11 +4,13 @@ PAWK aims to bring the full power of Python to AWK-like line-processing.
 
 ## Examples
 
-***Note:** most flags have short versions but the long versions are shown here for clarity.*
+### Line processing
 		
 Print the name and size of every file from stdin:
 	
 	find . -type f | pawk 'f[0], os.stat(f[0]).st_size'
+	
+> **Note:** this example also shows how pawk automatically imports referenced modules, in this case `os`.
 
 Print the sum size of all files from stdin:
 
@@ -22,6 +24,13 @@ Print the sum size of all files from stdin:
 Short-flag version:
 
 	find . -type f | pawk -sB c=0 -E 'print c' 'c += os.stat(f[0]).st_size'
+	
+Transform `/etc/hosts` into a JSON map of host to IP:
+
+	cat /etc/hosts | pawk -sB 'd={}' -E 'print json.dumps(d)' \
+		'if not l.startswith("#"): d[f[1]] = f[0]'
+	
+### Whole-file processing
 
 PAWK can also operate on entire files by passing `-s`. The entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
 
