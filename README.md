@@ -9,6 +9,11 @@ Print lines matching a pattern:
 	ls -l / | awk '/etc/'
 	ls -l / | pawk '/etc/'
 
+Print lines *not* matching a pattern:
+
+	ls -l / | awk '!/etc/'
+	ls -l / | pawk '!/etc/'
+
 Field slicing and dicing (here pawk wins because of Python's array slicing):
 
 	ls -l | awk '{print $5, $6, $7, $8, $9}'

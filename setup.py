@@ -14,5 +14,6 @@ setup(
     platforms=['any'],
     author='Alec Thomas',
     author_email='alec@swapoff.org',
+    py_modules=['pawk'],
     scripts=['pawk'],
     )
