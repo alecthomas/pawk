@@ -32,7 +32,7 @@ Transform `/etc/hosts` into a JSON map of host to IP:
 	
 ### Whole-file processing
 
-PAWK can also operate on entire files by passing `-s`. The entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
+If statement mode (`-s`)is enabled and you do not provide a line expression, pawk will accumulate each line, and the entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
 
 	cat README.md | \
 		pawk \
