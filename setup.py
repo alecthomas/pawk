@@ -8,7 +8,7 @@ setup(
     name='pawk',
     url='http://github.com/alecthomas/pawk',
     download_url='http://github.com/alecthomas/pawk',
-    version='0.1',
+    version='0.2',
     description='A Python line-processor (like awk) based on pyline.',
     license='PSF',
     platforms=['any'],
