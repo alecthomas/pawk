@@ -26,9 +26,10 @@ def process(context, delim, odelim, begin_statement, cmd, end_statement, as_stat
     write = sys.stdout.write
 
     for numz, line in enumerate(sys.stdin):
-        context['l'] = line
+        context['line'] = line
+        l = context['l'] = line.strip()
         context['n'] = numz + 1
-        context['f'] = [w for w in line.strip().split(delim) if w]
+        context['f'] = [w for w in l.split(delim) if w]
         context['nf'] = len(context['f'])
         try:
             result = eval(_codeobj, globals(), context)
@@ -92,10 +93,16 @@ def main():
             context[key] = __import__(m)
         except:
             pass
-
-    process(context, delim, odelim, options.begin, cmd, options.end, options.statement, options.strict)
+    try:
+        process(context, delim, odelim, options.begin, cmd, options.end, options.statement, options.strict)
+    except EnvironmentError as e:
+        # Workaround for close failed in file object destructor: sys.excepthook is missing lost sys.stderr
+        # http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
+        print >> sys.stderr, str(e)
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
     main()
-
