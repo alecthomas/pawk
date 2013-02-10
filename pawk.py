@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-"""
-cat input | pawk [<options>] <expr>
+"""cat input | pawk [<options>] <expr>
 
 A Python line-processor (like awk).
 
@@ -16,10 +15,75 @@ import sys
 
 
 class Action(object):
-    def __init__(self, arg):
-        self._parse_command(arg)
+    """Represents a single action to be applied to each line."""
 
-    def match(self, line):
+    def __init__(self, pattern=None, cmd='l', statement=False, negate=False):
+        self.delim = None
+        self.odelim = ' '
+        self.negate = negate
+        self.pattern = None if pattern is None else re.compile(pattern)
+        self.context = {'m': ()}
+        self.cmd = cmd
+        self._compile(statement)
+
+    @classmethod
+    def from_options(cls, options, arg):
+        self = cls()
+        self.negate, self.pattern, self.cmd = self._parse_command(arg)
+        self.context = self._context_from_options(options)
+        self._compile(options.statement)
+        return self
+
+    def _compile(self, statement):
+        self._codeobj = compile(self.cmd, 'EXPR', 'exec' if statement else 'eval')
+
+    def apply(self, numz, line):
+        """Apply action to line."""
+        match = self._match(line)
+        if match is None:
+            return None
+        l = line.strip()
+        f = [w for w in l.split(self.delim) if w]
+        self.context.update(
+            m=match,
+            line=line,
+            l=l,
+            n=numz + 1,
+            f=f,
+            nf=len(f),
+            )
+        return eval(self._codeobj, globals(), self.context)
+
+    def _context_from_options(self, options):
+        context = {
+            'm': (),
+        }
+        if options.imports:
+            for imp in options.imports.split(','):
+                m = __import__(imp.strip(), fromlist=['.'])
+                context.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
+
+        self.delim = options.delim.decode('string_escape') if options.delim else None
+        self.odelim = options.delim_out.decode('string_escape')
+        if not self.cmd:
+            if options.statement:
+                context['t'] = ''
+                self.cmd = 't += l'
+            else:
+                self.cmd = 'l'
+
+        # Auto-import. This is not smart.
+        all_text = ' '.join([(options.begin or ''), self.cmd, (options.end or '')])
+        modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
+        for m in modules:
+            try:
+                key = m.split('.')[0]
+                context[key] = __import__(m)
+            except:
+                pass
+        return context
+
+    def _match(self, line):
         if self.pattern is None:
             return self.negate
         match = self.pattern.search(line)
@@ -30,64 +94,53 @@ class Action(object):
 
     def _parse_command(self, arg):
         match = re.match(r'(?:(!)?/((?:\\.|[^/])+)/)?(.*)', arg)
-        negate, self.pattern, self.cmd = match.groups()
-        self.cmd = self.cmd.strip()
-        self.negate = bool(negate)
-        if self.pattern is not None:
-            self.pattern = re.compile(self.pattern)
+        negate, pattern, cmd = match.groups()
+        cmd = cmd.strip()
+        negate = bool(negate)
+        if pattern is not None:
+            pattern = re.compile(pattern)
+        return negate, pattern, cmd
 
 
-def process(context, delim, odelim, begin_statement, action, end_statement, as_statement, strict):
+def process(input, output, begin_statement, action, end_statement, strict):
+    """Process a stream."""
     if begin_statement:
         begin = compile(begin_statement, 'BEGIN', 'exec')
-        eval(begin, globals(), context)
+        eval(begin, globals(), action.context)
 
-    context['m'] = ()
+    write = output.write
+    try:
+        old_stdout_write = sys.stdout.write
+        sys.stdout.write = write
 
-    _codeobj = compile(action.cmd, 'EXPR', 'exec' if as_statement else 'eval')
-    write = sys.stdout.write
+        for numz, line in enumerate(input):
+            try:
+                result = action.apply(numz, line)
+            except:
+                if strict:
+                    raise
+                continue
+            if result is None or result is False:
+                continue
+            elif result is True:
+                result = line
+            elif isinstance(result, (list, tuple)):
+                result = action.odelim.join(map(str, result))
+            else:
+                result = str(result)
+            write(result)
+            if not result.endswith('\n'):
+                write('\n')
 
-    for numz, line in enumerate(sys.stdin):
-        match = action.match(line)
-        if match is None:
-            continue
-        context['m'] = match
-        context['line'] = line
-        l = context['l'] = line.strip()
-        context['n'] = numz + 1
-        context['f'] = [w for w in l.split(delim) if w]
-        context['nf'] = len(context['f'])
-        try:
-            result = eval(_codeobj, globals(), context)
-        except:
-            if strict:
-                raise
-            continue
-        if as_statement:
-            continue
-        if result is None or result is False:
-            continue
-        elif result is True:
-            result = line
-        elif isinstance(result, (list, tuple)):
-            result = odelim.join(map(str, result))
-        else:
-            result = str(result)
-        write(result)
-        if not result.endswith('\n'):
-            write('\n')
-
-    if end_statement:
-        end = compile(end_statement, 'END', 'exec')
-        eval(end, globals(), context)
+        if end_statement:
+            end = compile(end_statement, 'END', 'exec')
+            eval(end, globals(), action.context)
+    finally:
+        sys.stdout.write = old_stdout_write
 
 
-def parse_commands(arg):
-    match = re.match(r'(?:/((?:\\.|[^/])+)/)?(.*)', arg)
-    return match.groups()
-
-
-def main():
+# For integration tests.
+def run(argv, input, output):
     parser = optparse.OptionParser()
     parser.set_usage(__doc__.strip())
     parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
@@ -98,36 +151,14 @@ def main():
     parser.add_option('-s', '--statement', action='store_true', help='execute <expr> as a statement instead of an expression')
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
 
-    context = {}
+    options, args = parser.parse_args(argv[1:])
+    action = Action.from_options(options, ' '.join(args).strip())
+    process(input, output, options.begin, action, options.end, options.strict)
 
-    options, args = parser.parse_args(sys.argv[1:])
-    if options.imports:
-        for imp in options.imports.split(','):
-            m = __import__(imp.strip(), fromlist=['.'])
-            context.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
 
-    delim = options.delim.decode('string_escape') if options.delim else None
-    odelim = options.delim_out.decode('string_escape')
-
-    action = Action(' '.join(args).strip())
-    if not action.cmd:
-        if options.statement:
-            context['t'] = ''
-            action.cmd = 't += l'
-        else:
-            action.cmd = 'l'
-
-    # Auto-import. This is not smart.
-    all_text = ' '.join([(options.begin or ''), action.cmd, (options.end or '')])
-    modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
-    for m in modules:
-        try:
-            key = m.split('.')[0]
-            context[key] = __import__(m)
-        except:
-            pass
+def main():
     try:
-        process(context, delim, odelim, options.begin, action, options.end, options.statement, options.strict)
+        run(sys.argv, sys.stdin, sys.stdout)
     except EnvironmentError as e:
         # Workaround for close failed in file object destructor: sys.excepthook is missing lost sys.stderr
         # http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script

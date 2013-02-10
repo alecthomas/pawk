@@ -12,12 +12,12 @@ Print lines matching a pattern:
 Print lines *not* matching a pattern:
 
 	ls -l / | awk '!/etc/'
-	ls -l / | pawk '!/etc/'
+	ls -l / | pawk '!/etc/'	
 
 Field slicing and dicing (here pawk wins because of Python's array slicing):
 
-	ls -l | awk '{print $5, $6, $7, $8, $9}'
-	ls -l | pawk 'f[4:]'
+	ls -l / | awk '/etc/ {print $5, $6, $7, $8, $9}'
+	ls -l / | pawk '/etc/ f[4:]'
 
 Begin and end end actions (in this case, summing the sizes of all files):
 
@@ -33,7 +33,7 @@ Matching a single field (any filename with "t" in it):
 
 	ls -l | awk '$NF ~/t/'
 	ls -l | pawk '"t" in f[-1]'
-	
+
 ## Installation
 
 It should be as simple as:
