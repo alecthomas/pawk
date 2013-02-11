@@ -17,20 +17,19 @@ import sys
 class Action(object):
     """Represents a single action to be applied to each line."""
 
-    def __init__(self, pattern=None, cmd='l', statement=False, negate=False):
+    def __init__(self, pattern=None, cmd='l', statement=False, negate=False, strict=False):
         self.delim = None
         self.odelim = ' '
         self.negate = negate
         self.pattern = None if pattern is None else re.compile(pattern)
         self.cmd = cmd
+        self.strict = strict
         self._compile(statement)
 
     @classmethod
     def from_options(cls, options, arg):
-        self = cls()
-        self.negate, self.pattern, self.cmd = self._parse_command(arg)
-        self._compile(options.statement)
-        return self
+        negate, pattern, cmd = Action._parse_command(arg)
+        return cls(pattern=pattern, cmd=cmd, statement=options.statement, negate=negate, strict=options.strict)
 
     def _compile(self, statement):
         if not self.cmd:
@@ -40,13 +39,30 @@ class Action(object):
                 self.cmd = 'l'
         self._codeobj = compile(self.cmd, 'EXPR', 'exec' if statement else 'eval')
 
-    def apply(self, context, numz, line):
-        """Apply action to line."""
+    def apply(self, context, line):
+        """Apply action to line.
+
+        :return: Line text or None.
+        """
         match = self._match(line)
         if match is None:
             return None
         context['m'] = match
-        return eval(self._codeobj, globals(), context)
+        try:
+            result = eval(self._codeobj, globals(), context)
+        except:
+            if self.strict:
+                raise
+            return None
+        if result is None or result is False:
+            return None
+        elif result is True:
+            result = line
+        elif isinstance(result, (list, tuple)):
+            result = context.odelim.join(map(str, result))
+        else:
+            result = str(result)
+        return result
 
     def _match(self, line):
         if self.pattern is None:
@@ -57,13 +73,12 @@ class Action(object):
         elif self.negate:
             return ()
 
-    def _parse_command(self, arg):
+    @staticmethod
+    def _parse_command(arg):
         match = re.match(r'(?:(!)?/((?:\\.|[^/])+)/)?(.*)', arg)
         negate, pattern, cmd = match.groups()
         cmd = cmd.strip()
         negate = bool(negate)
-        if pattern is not None:
-            pattern = re.compile(pattern)
         return negate, pattern, cmd
 
 
@@ -111,23 +126,11 @@ def process(context, input, output, begin_statement, actions, end_statement, str
         for numz, line in enumerate(input):
             context.apply(numz, line)
             for action in actions:
-                try:
-                    result = action.apply(context, numz, line)
-                except:
-                    if strict:
-                        raise
-                    continue
-                if result is None or result is False:
-                    continue
-                elif result is True:
-                    result = line
-                elif isinstance(result, (list, tuple)):
-                    result = context.odelim.join(map(str, result))
-                else:
-                    result = str(result)
-                write(result)
-                if not result.endswith('\n'):
-                    write('\n')
+                result = action.apply(context, line)
+                if result is not None:
+                    write(result)
+                    if not result.endswith('\n'):
+                        write('\n')
 
         if end_statement:
             end = compile(end_statement, 'END', 'single')

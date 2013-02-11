@@ -24,7 +24,7 @@ def run_integration_test(input, args):
 
 def test_action_parse():
     negate, pattern, cmd = Action()._parse_command(r'/(\w+)/ l')
-    assert pattern.pattern == r'(\w+)'
+    assert pattern == r'(\w+)'
     assert cmd == 'l'
     assert negate is False
 
