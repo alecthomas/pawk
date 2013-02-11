@@ -85,7 +85,7 @@ class Action(object):
 class Context(dict):
     def apply(self, numz, line):
         l = line.strip()
-        f = [w for w in l.split(self.delim) if w]
+        f = tuple([w for w in l.split(self.delim) if w])
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
 
     @classmethod
@@ -139,8 +139,7 @@ def process(context, input, output, begin_statement, actions, end_statement, str
         sys.stdout = old_stdout
 
 
-# For integration tests.
-def run(argv, input, output):
+def parse_commandline(argv):
     parser = optparse.OptionParser()
     parser.set_usage(__doc__.strip())
     parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
@@ -150,8 +149,12 @@ def run(argv, input, output):
     parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
     parser.add_option('-s', '--statement', action='store_true', help='execute <expr> as a statement instead of an expression')
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
+    return parser.parse_args(argv[1:])
 
-    options, args = parser.parse_args(argv[1:])
+
+# For integration tests.
+def run(argv, input, output):
+    options, args = parse_commandline(argv)
 
     # Auto-import. This is not smart.
     all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])

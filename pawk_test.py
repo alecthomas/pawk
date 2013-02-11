@@ -1,4 +1,5 @@
-from pawk import Action, run
+import timeit
+from pawk import Action, Context, run, parse_commandline
 from StringIO import StringIO
 
 
@@ -66,3 +67,15 @@ def test_integration_truth():
 def test_integration_multiple_actions():
     out = run_integration_test(TEST_INPUT_LS, ['/setup/', '/README/'])
     assert [r.split()[-1] for r in out.splitlines()] == ['README.md', 'setup.py']
+
+
+def benchmark_fields():
+    options, _ = parse_commandline([''])
+    action = Action(cmd='f')
+    context = Context.from_options(options, [])
+    t = timeit.Timer(lambda: action.apply(context, 'foo bar waz was haz has hair'))
+    print t.repeat(repeat=3, number=100000)
+
+
+if __name__ == '__main__':
+    benchmark_fields()
