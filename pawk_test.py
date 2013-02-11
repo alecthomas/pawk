@@ -44,7 +44,7 @@ def test_action_match_negate():
 
 
 def test_integration_sum():
-    out = run_integration_test(TEST_INPUT_LS, ['-sBc = 0', '-Eprint c', 'c += int(f[4])'])
+    out = run_integration_test(TEST_INPUT_LS, ['-sBc = 0', '-Ec', 'c += int(f[4])'])
     assert out == '9936'
 
 
@@ -61,3 +61,8 @@ def test_integration_negate_match():
 def test_integration_truth():
     out = run_integration_test(TEST_INPUT_LS, ['int(f[4]) > 1024'])
     assert [r.split()[-1] for r in out.splitlines()] == ['README.md', 'pawk.py']
+
+
+def test_integration_multiple_actions():
+    out = run_integration_test(TEST_INPUT_LS, ['/setup/', '/README/'])
+    assert [r.split()[-1] for r in out.splitlines()] == ['README.md', 'setup.py']

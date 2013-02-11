@@ -22,7 +22,6 @@ class Action(object):
         self.odelim = ' '
         self.negate = negate
         self.pattern = None if pattern is None else re.compile(pattern)
-        self.context = {'m': ()}
         self.cmd = cmd
         self._compile(statement)
 
@@ -30,58 +29,24 @@ class Action(object):
     def from_options(cls, options, arg):
         self = cls()
         self.negate, self.pattern, self.cmd = self._parse_command(arg)
-        self.context = self._context_from_options(options)
         self._compile(options.statement)
         return self
 
     def _compile(self, statement):
+        if not self.cmd:
+            if statement:
+                self.cmd = 't += line'
+            else:
+                self.cmd = 'l'
         self._codeobj = compile(self.cmd, 'EXPR', 'exec' if statement else 'eval')
 
-    def apply(self, numz, line):
+    def apply(self, context, numz, line):
         """Apply action to line."""
         match = self._match(line)
         if match is None:
             return None
-        l = line.strip()
-        f = [w for w in l.split(self.delim) if w]
-        self.context.update(
-            m=match,
-            line=line,
-            l=l,
-            n=numz + 1,
-            f=f,
-            nf=len(f),
-            )
-        return eval(self._codeobj, globals(), self.context)
-
-    def _context_from_options(self, options):
-        context = {
-            'm': (),
-        }
-        if options.imports:
-            for imp in options.imports.split(','):
-                m = __import__(imp.strip(), fromlist=['.'])
-                context.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
-
-        self.delim = options.delim.decode('string_escape') if options.delim else None
-        self.odelim = options.delim_out.decode('string_escape')
-        if not self.cmd:
-            if options.statement:
-                context['t'] = ''
-                self.cmd = 't += line'
-            else:
-                self.cmd = 'l'
-
-        # Auto-import. This is not smart.
-        all_text = ' '.join([(options.begin or ''), self.cmd, (options.end or '')])
-        modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
-        for m in modules:
-            try:
-                key = m.split('.')[0]
-                context[key] = __import__(m)
-            except:
-                pass
-        return context
+        context['m'] = match
+        return eval(self._codeobj, globals(), context)
 
     def _match(self, line):
         if self.pattern is None:
@@ -102,7 +67,35 @@ class Action(object):
         return negate, pattern, cmd
 
 
-def process(input, output, begin_statement, action, end_statement, strict):
+class Context(dict):
+    def apply(self, numz, line):
+        l = line.strip()
+        f = [w for w in l.split(self.delim) if w]
+        self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
+
+    @classmethod
+    def from_options(cls, options, modules):
+        self = cls()
+        self['t'] = ''
+        self['m'] = ()
+        if options.imports:
+            for imp in options.imports.split(','):
+                m = __import__(imp.strip(), fromlist=['.'])
+                self.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
+
+        self.delim = options.delim.decode('string_escape') if options.delim else None
+        self.odelim = options.delim_out.decode('string_escape')
+
+        for m in modules:
+            try:
+                key = m.split('.')[0]
+                self[key] = __import__(m)
+            except:
+                pass
+        return self
+
+
+def process(context, input, output, begin_statement, actions, end_statement, strict):
     """Process a stream."""
     try:
         # Override "print"
@@ -111,32 +104,34 @@ def process(input, output, begin_statement, action, end_statement, strict):
 
         if begin_statement:
             begin = compile(begin_statement, 'BEGIN', 'single')
-            eval(begin, globals(), action.context)
+            eval(begin, globals(), context)
 
         write = output.write
 
         for numz, line in enumerate(input):
-            try:
-                result = action.apply(numz, line)
-            except:
-                if strict:
-                    raise
-                continue
-            if result is None or result is False:
-                continue
-            elif result is True:
-                result = line
-            elif isinstance(result, (list, tuple)):
-                result = action.odelim.join(map(str, result))
-            else:
-                result = str(result)
-            write(result)
-            if not result.endswith('\n'):
-                write('\n')
+            context.apply(numz, line)
+            for action in actions:
+                try:
+                    result = action.apply(context, numz, line)
+                except:
+                    if strict:
+                        raise
+                    continue
+                if result is None or result is False:
+                    continue
+                elif result is True:
+                    result = line
+                elif isinstance(result, (list, tuple)):
+                    result = context.odelim.join(map(str, result))
+                else:
+                    result = str(result)
+                write(result)
+                if not result.endswith('\n'):
+                    write('\n')
 
         if end_statement:
             end = compile(end_statement, 'END', 'single')
-            eval(end, globals(), action.context)
+            eval(end, globals(), context)
     finally:
         sys.stdout = old_stdout
 
@@ -154,8 +149,17 @@ def run(argv, input, output):
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
 
     options, args = parser.parse_args(argv[1:])
-    action = Action.from_options(options, ' '.join(args).strip())
-    process(input, output, options.begin, action, options.end, options.strict)
+
+    # Auto-import. This is not smart.
+    all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])
+    modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
+
+    context = Context.from_options(options, modules)
+    actions = [Action.from_options(options, arg) for arg in args]
+    if not actions:
+        actions = [Action.from_options(options, '')]
+
+    process(context, input, output, options.begin, actions, options.end, options.strict)
 
 
 def main():
