@@ -84,7 +84,7 @@ class Action(object):
 
 class Context(dict):
     def apply(self, numz, line):
-        l = line.strip()
+        l = line[:-1]
         f = tuple([w for w in l.split(self.delim) if w])
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
 

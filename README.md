@@ -6,7 +6,15 @@ Here are some quick examples to show some of the advantages of pawk over AWK.
 
 The first example transforms `/etc/hosts` into a JSON map of host to IP:
 
-	cat /etc/hosts | pawk -sB 'd={}' -E 'json.dumps(d)' '!/^#/ d[f[1]] = f[0]'
+	cat /etc/hosts | pawk -s -B 'd={}' -E 'print json.dumps(d)' '!/^#/ d[f[1]] = f[0]'
+
+Breaking this down:
+
+1. `-s` tells pawk to treat actions as Python statements rather than expressions, allowing us to do an assignment.
+2. `-B 'd={}'` is a begin statement initializing a dictionary, executed once before processing begins.
+3. `-E 'print json.dumps(d)'` is an end statement, outputting JSON representation of the dictionary `d`.
+4. `!/^#/` tells pawk to match any line *not* beginning with `#`.
+5. `d[f[1]] = f[0]` adds a dictionary entry where the key is the second field in the line (the first hostname) and the value is the first field (the IP address).
 
 And another example showing how to bzip2-compress + base64-encode a file:
 
@@ -95,6 +103,30 @@ Explicitly print the output if this is not desirable:
 	foo
 	bar
 
+## Command-line usage
+
+```
+Usage: cat input | pawk [<options>] <expr>
+
+A Python line-processor (like awk).
+
+See https://github.com/alecthomas/pawk for details. Based on
+http://code.activestate.com/recipes/437932/.
+
+Options:
+  -h, --help            show this help message and exit
+  -i <modules>, --import=<modules>
+                        comma-separated list of modules to "from x import *"
+                        from
+  -F <delim>            input delimiter
+  -O <delim>            output delimiter
+  -B <statement>, --begin=<statement>
+                        begin statement
+  -E <statement>, --end=<statement>
+                        end statement
+  -s, --statement       execute <expr> as a statement instead of an expression
+  --strict              abort on exceptions
+```
 
 ## Examples
 
