@@ -62,7 +62,7 @@ It should be as simple as:
 pip install pawk
 ```
 
-But if that doesn't work, just download the `pawk.py`, make it execuatable, and place it somewhere in your path.
+But if that doesn't work, just download the `pawk.py`, make it executable, and place it somewhere in your path.
 
 ## Expression evaluation
 
