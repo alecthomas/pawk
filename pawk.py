@@ -9,6 +9,7 @@ http://code.activestate.com/recipes/437932/.
 """
 
 import inspect
+import os
 import optparse
 import re
 import sys
@@ -84,7 +85,7 @@ class Action(object):
 
 class Context(dict):
     def apply(self, numz, line):
-        l = line[:-1]
+        l = line.rstrip()
         f = tuple([w for w in l.split(self.delim) if w])
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
 
@@ -142,6 +143,7 @@ def process(context, input, output, begin_statement, actions, end_statement, str
 def parse_commandline(argv):
     parser = optparse.OptionParser()
     parser.set_usage(__doc__.strip())
+    parser.add_option('-I', '--in_place', dest='in_place', help='modify given input file in-place', metavar='<filename>')
     parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
     parser.add_option('-F', dest='delim', help='input delimiter', metavar='<delim>', default=None)
     parser.add_option('-O', dest='delim_out', help='output delimiter', metavar='<delim>', default=' ')
@@ -156,6 +158,11 @@ def parse_commandline(argv):
 def run(argv, input, output):
     options, args = parse_commandline(argv)
 
+    if options.in_place:
+        os.rename(options.in_place, options.in_place + '~')
+        input = open(options.in_place + '~')
+        output = open(options.in_place, 'w')
+
     # Auto-import. This is not smart.
     all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])
     modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
@@ -165,7 +172,12 @@ def run(argv, input, output):
     if not actions:
         actions = [Action.from_options(options, '')]
 
-    process(context, input, output, options.begin, actions, options.end, options.strict)
+    try:
+        process(context, input, output, options.begin, actions, options.end, options.strict)
+    finally:
+        if options.in_place:
+            output.close()
+            input.close()
 
 
 def main():

@@ -32,7 +32,7 @@ Print lines matching a pattern:
 Print lines *not* matching a pattern:
 
 	ls -l / | awk '!/etc/'
-	ls -l / | pawk '!/etc/'	
+	ls -l / | pawk '!/etc/'
 
 Field slicing and dicing (here pawk wins because of Python's array slicing):
 
@@ -95,7 +95,7 @@ The type of the evaluated expression determines how output is displayed:
 End and begin blocks are statements, but if the result of the statement is not `None` it will be displayed via `repr()`. This is a useful shortcut for non-string values, but strings will look like their Python representation:
 
 	$ echo -ne 'foo\nbar' | pawk -sE t
-	'foo\nbar'	
+	'foo\nbar'
 
 Explicitly print the output if this is not desirable:
 
