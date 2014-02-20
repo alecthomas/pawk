@@ -8,6 +8,7 @@ See https://github.com/alecthomas/pawk for details. Based on
 http://code.activestate.com/recipes/437932/.
 """
 
+import ast
 import inspect
 import os
 import optparse
@@ -15,30 +16,55 @@ import re
 import sys
 
 
+RESULT_VAR_NAME = "__result"
+
+
+# Store the last expression, if present, into variable var_name.
+def save_last_expression(tree, var_name=RESULT_VAR_NAME):
+    body = tree.body
+    node = body[-1] if len(body) else None
+    body.insert(0, ast.Assign(targets=[ast.Name(id=var_name, ctx=ast.Store())],
+                              value=ast.Name(id="None", ctx=ast.Load())))
+    if node and isinstance(node, ast.Expr):
+        body[-1] = ast.copy_location(ast.Assign(
+            targets=[ast.Name(id=var_name, ctx=ast.Store())], value=node.value), node)
+    return ast.fix_missing_locations(tree)
+
+
+def compile_command(text):
+    tree = save_last_expression(compile(text, 'EXPR', 'exec', flags=ast.PyCF_ONLY_AST))
+    return compile(tree, 'EXPR', 'exec')
+
+
+def eval_in_context(codeobj, context, var_name=RESULT_VAR_NAME):
+  exec codeobj in globals(), context
+  return context.pop(var_name)
+
+
 class Action(object):
     """Represents a single action to be applied to each line."""
 
-    def __init__(self, pattern=None, cmd='l', statement=False, negate=False, strict=False):
+    def __init__(self, pattern=None, cmd='l', have_end_statement=False, negate=False, strict=False):
         self.delim = None
         self.odelim = ' '
         self.negate = negate
         self.pattern = None if pattern is None else re.compile(pattern)
         self.cmd = cmd
         self.strict = strict
-        self._compile(statement)
+        self._compile(have_end_statement)
 
     @classmethod
     def from_options(cls, options, arg):
         negate, pattern, cmd = Action._parse_command(arg)
-        return cls(pattern=pattern, cmd=cmd, statement=options.statement, negate=negate, strict=options.strict)
+        return cls(pattern=pattern, cmd=cmd, have_end_statement=(options.end is not None), negate=negate, strict=options.strict)
 
-    def _compile(self, statement):
+    def _compile(self, have_end_statement):
         if not self.cmd:
-            if statement:
+            if have_end_statement:
                 self.cmd = 't += line'
             else:
                 self.cmd = 'l'
-        self._codeobj = compile(self.cmd, 'EXPR', 'exec' if statement else 'eval')
+        self._codeobj = compile_command(self.cmd)
 
     def apply(self, context, line):
         """Apply action to line.
@@ -50,20 +76,11 @@ class Action(object):
             return None
         context['m'] = match
         try:
-            result = eval(self._codeobj, globals(), context)
+            return eval_in_context(self._codeobj, context)
         except:
-            if self.strict:
-                raise
-            return None
-        if result is None or result is False:
-            return None
-        elif result is True:
-            result = line
-        elif isinstance(result, (list, tuple)):
-            result = context.odelim.join(map(str, result))
-        else:
-            result = str(result)
-        return result
+            if not self.strict:
+                return None
+            raise
 
     def _match(self, line):
         if self.pattern is None:
@@ -76,7 +93,7 @@ class Action(object):
 
     @staticmethod
     def _parse_command(arg):
-        match = re.match(r'(?:(!)?/((?:\\.|[^/])+)/)?(.*)', arg)
+        match = re.match(r'(?ms)(?:(!)?/((?:\\.|[^/])+)/)?(.*)', arg)
         negate, pattern, cmd = match.groups()
         cmd = cmd.strip()
         negate = bool(negate)
@@ -113,29 +130,33 @@ class Context(dict):
 
 def process(context, input, output, begin_statement, actions, end_statement, strict):
     """Process a stream."""
+    # Override "print"
+    old_stdout = sys.stdout
+    sys.stdout = output
+    write = output.write
+
+    def write_result(result, when_true=None):
+        if result is True:
+            result = when_true
+        elif isinstance(result, (list, tuple)):
+            result = context.odelim.join(map(str, result))
+        if result is not None and result is not False:
+            result = str(result)
+            write(result)
+            if not result.endswith('\n'):
+                write('\n')
+
     try:
-        # Override "print"
-        old_stdout = sys.stdout
-        sys.stdout = output
-
         if begin_statement:
-            begin = compile(begin_statement, 'BEGIN', 'single')
-            eval(begin, globals(), context)
-
-        write = output.write
+            write_result(eval_in_context(compile_command(begin_statement), context))
 
         for numz, line in enumerate(input):
             context.apply(numz, line)
             for action in actions:
-                result = action.apply(context, line)
-                if result is not None:
-                    write(result)
-                    if not result.endswith('\n'):
-                        write('\n')
+                write_result(action.apply(context, line), when_true=line)
 
         if end_statement:
-            end = compile(end_statement, 'END', 'single')
-            eval(end, globals(), context)
+            write_result(eval_in_context(compile_command(end_statement), context))
     finally:
         sys.stdout = old_stdout
 
@@ -149,7 +170,7 @@ def parse_commandline(argv):
     parser.add_option('-O', dest='delim_out', help='output delimiter', metavar='<delim>', default=' ')
     parser.add_option('-B', '--begin', help='begin statement', metavar='<statement>')
     parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
-    parser.add_option('-s', '--statement', action='store_true', help='execute <expr> as a statement instead of an expression')
+    parser.add_option('-s', '--statement', action='store_true', help='DEPRECATED. retained for backward compatibility')
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
     return parser.parse_args(argv[1:])
 

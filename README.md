@@ -6,19 +6,18 @@ Here are some quick examples to show some of the advantages of pawk over AWK.
 
 The first example transforms `/etc/hosts` into a JSON map of host to IP:
 
-	cat /etc/hosts | pawk -s -B 'd={}' -E 'print json.dumps(d)' '!/^#/ d[f[1]] = f[0]'
+	cat /etc/hosts | pawk -B 'd={}' -E 'json.dumps(d)' '!/^#/ d[f[1]] = f[0]'
 
 Breaking this down:
 
-1. `-s` tells pawk to treat actions as Python statements rather than expressions, allowing us to do an assignment.
-2. `-B 'd={}'` is a begin statement initializing a dictionary, executed once before processing begins.
-3. `-E 'print json.dumps(d)'` is an end statement, outputting JSON representation of the dictionary `d`.
-4. `!/^#/` tells pawk to match any line *not* beginning with `#`.
-5. `d[f[1]] = f[0]` adds a dictionary entry where the key is the second field in the line (the first hostname) and the value is the first field (the IP address).
+1. `-B 'd={}'` is a begin statement initializing a dictionary, executed once before processing begins.
+2. `-E 'json.dumps(d)'` is an end statement expression, producing the JSON representation of the dictionary `d`.
+3. `!/^#/` tells pawk to match any line *not* beginning with `#`.
+4. `d[f[1]] = f[0]` adds a dictionary entry where the key is the second field in the line (the first hostname) and the value is the first field (the IP address).
 
 And another example showing how to bzip2-compress + base64-encode a file:
 
-	cat pawk.py | pawk -sE 'print base64.encodestring(bz2.compress(t))'
+	cat pawk.py | pawk -E 'base64.encodestring(bz2.compress(t))'
 
 ### AWK example translations
 
@@ -42,7 +41,7 @@ Field slicing and dicing (here pawk wins because of Python's array slicing):
 Begin and end end actions (in this case, summing the sizes of all files):
 
 	ls -l | awk 'BEGIN {c = 0} {c += $5} END {print c}'
-	ls -l | pawk -s -B 'c = 0' -E 'c' 'c += int(f[4])'
+	ls -l | pawk -B 'c = 0' -E 'c' 'c += int(f[4])'
 
 Print files where a field matches a numeric expression (in this case where files are > 1024 bytes):
 
@@ -66,7 +65,7 @@ But if that doesn't work, just download the `pawk.py`, make it executable, and p
 
 ## Expression evaluation
 
-PAWK evaluates a Python expression (or statement if `--statement` is provided) against each line in stdin. The following variables are available in local context:
+PAWK evaluates a Python expression or statement against each line in stdin. The following variables are available in local context:
 
 - `line` - Current line text, including newline.
 - `l` - Current line text, excluding newline.
@@ -92,16 +91,12 @@ The type of the evaluated expression determines how output is displayed:
 
 ### Start/end blocks
 
-End and begin blocks are statements, but if the result of the statement is not `None` it will be displayed via `repr()`. This is a useful shortcut for non-string values, but strings will look like their Python representation:
+The rules are the same as for line actions with one difference.  Because there is no "line" that corresponds to them, an expression returning True is ignored.
 
-	$ echo -ne 'foo\nbar' | pawk -sE t
-	'foo\nbar'
+	$ echo -ne 'foo\nbar' | pawk -E t
+    foo
+    bar
 
-Explicitly print the output if this is not desirable:
-
-	$ echo -ne 'foo\nbar' | pawk -sE 'print t'
-	foo
-	bar
 
 ## Command-line usage
 
@@ -124,7 +119,6 @@ Options:
                         begin statement
   -E <statement>, --end=<statement>
                         end statement
-  -s, --statement       execute <expr> as a statement instead of an expression
   --strict              abort on exceptions
 ```
 
@@ -142,26 +136,23 @@ Print the sum size of all files from stdin:
 
 	find . -type f | \
 		pawk \
-			--statement \
 			--begin 'c=0' \
 			--end c \
 			'c += os.stat(f[0]).st_size'
 
 Short-flag version:
 
-	find . -type f | pawk -sB c=0 -E c 'c += os.stat(f[0]).st_size'
+	find . -type f | pawk -B c=0 -E c 'c += os.stat(f[0]).st_size'
 
 
 ### Whole-file processing
 
-If statement mode (`-s`)is enabled and you do not provide a line expression, pawk will accumulate each line, and the entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
+If you do not provide a line expression, but do provide an end statement, pawk will accumulate each line, and the entire file's text will be available in the end statement as `t`. This is useful for operations on entire files, like the following example of converting a file from markdown to HTML:
 
 	cat README.md | \
-		pawk \
-			--statement \
-			--end 'print markdown.markdown(t)'
+		pawk --end 'markdown.markdown(t)'
 
 Short-flag version:
 
-	cat README.md | pawk -sE 'print markdown.markdown(t)'
+	cat README.md | pawk -E 'markdown.markdown(t)'
 

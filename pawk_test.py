@@ -45,7 +45,7 @@ def test_action_match_negate():
 
 
 def test_integration_sum():
-    out = run_integration_test(TEST_INPUT_LS, ['-sBc = 0', '-Ec', 'c += int(f[4])'])
+    out = run_integration_test(TEST_INPUT_LS, ['-Bc = 0', '-Ec', 'c += int(f[4])'])
     assert out == '9936'
 
 
