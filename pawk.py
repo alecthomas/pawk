@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """cat input | pawk [<options>] <expr>
 
@@ -9,14 +10,35 @@ http://code.activestate.com/recipes/437932/.
 """
 
 import ast
+import codecs
 import inspect
-import os
 import optparse
+import os
 import re
 import sys
 
 
 RESULT_VAR_NAME = "__result"
+
+
+if sys.version_info[0] > 2:
+    try:
+        exec_ = __builtins__['exec']
+    except TypeError:
+        exec_ = getattr(__builtins__, 'exec')
+    STRING_ESCAPE = 'unicode_escape'
+else:
+    def exec_(_code_, _globs_=None, _locs_=None):
+        if _globs_ is None:
+            frame = sys._getframe(1)
+            _globs_ = frame.f_globals
+            if _locs_ is None:
+                _locs_ = frame.f_locals
+            del frame
+        elif _locs_ is None:
+            _locs_ = _globs_
+        exec("""exec _code_ in _globs_, _locs_""")
+    STRING_ESCAPE = 'string_escape'
 
 
 # Store the last expression, if present, into variable var_name.
@@ -37,8 +59,8 @@ def compile_command(text):
 
 
 def eval_in_context(codeobj, context, var_name=RESULT_VAR_NAME):
-  exec codeobj in globals(), context
-  return context.pop(var_name)
+    exec_(codeobj, globals(), context)
+    return context.pop(var_name, None)
 
 
 class Action(object):
@@ -116,8 +138,8 @@ class Context(dict):
                 m = __import__(imp.strip(), fromlist=['.'])
                 self.update((k, v) for k, v in inspect.getmembers(m) if k[0] != '_')
 
-        self.delim = options.delim.decode('string_escape') if options.delim else None
-        self.odelim = options.delim_out.decode('string_escape')
+        self.delim = codecs.decode(options.delim, STRING_ESCAPE) if options.delim else None
+        self.odelim = codecs.decode(options.delim_out, STRING_ESCAPE)
 
         for m in modules:
             try:
@@ -207,7 +229,7 @@ def main():
     except EnvironmentError as e:
         # Workaround for close failed in file object destructor: sys.excepthook is missing lost sys.stderr
         # http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
-        print >> sys.stderr, str(e)
+        sys.stderr.write(str(e) + '\n')
         sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(1)

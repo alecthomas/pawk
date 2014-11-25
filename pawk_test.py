@@ -1,6 +1,12 @@
+# -*- coding: utf-8 -*-
+import sys
 import timeit
 from pawk import Action, Context, run, parse_commandline
-from StringIO import StringIO
+
+if sys.version_info[0] > 2:
+    from io import StringIO
+else:
+    from StringIO import StringIO
 
 
 TEST_INPUT_LS = r'''
@@ -74,7 +80,7 @@ def benchmark_fields():
     action = Action(cmd='f')
     context = Context.from_options(options, [])
     t = timeit.Timer(lambda: action.apply(context, 'foo bar waz was haz has hair'))
-    print t.repeat(repeat=3, number=100000)
+    print((t.repeat(repeat=3, number=100000)))
 
 
 if __name__ == '__main__':
