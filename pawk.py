@@ -37,7 +37,7 @@ else:
             del frame
         elif _locs_ is None:
             _locs_ = _globs_
-            exec("""exec _code_ in _globs_, _locs_""")
+        exec("""exec _code_ in _globs_, _locs_""")
     STRING_ESCAPE = 'string_escape'
 
 
@@ -60,7 +60,7 @@ def compile_command(text):
 
 def eval_in_context(codeobj, context, var_name=RESULT_VAR_NAME):
     exec_(codeobj, globals(), context)
-    return context.pop(var_name)
+    return context.pop(var_name, None)
 
 
 class Action(object):
@@ -229,7 +229,7 @@ def main():
     except EnvironmentError as e:
         # Workaround for close failed in file object destructor: sys.excepthook is missing lost sys.stderr
         # http://stackoverflow.com/questions/7955138/addressing-sys-excepthook-error-in-bash-script
-        print >> sys.stderr, str(e)
+        sys.stderr.write(str(e) + '\n')
         sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(1)
