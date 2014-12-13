@@ -201,21 +201,21 @@ def parse_commandline(argv):
 def run(argv, input, output):
     options, args = parse_commandline(argv)
 
-    if options.in_place:
-        os.rename(options.in_place, options.in_place + '~')
-        input = open(options.in_place + '~')
-        output = open(options.in_place, 'w')
-
-    # Auto-import. This is not smart.
-    all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])
-    modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
-
-    context = Context.from_options(options, modules)
-    actions = [Action.from_options(options, arg) for arg in args]
-    if not actions:
-        actions = [Action.from_options(options, '')]
-
     try:
+        if options.in_place:
+            os.rename(options.in_place, options.in_place + '~')
+            input = open(options.in_place + '~')
+            output = open(options.in_place, 'w')
+
+        # Auto-import. This is not smart.
+        all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])
+        modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
+    
+        context = Context.from_options(options, modules)
+        actions = [Action.from_options(options, arg) for arg in args]
+        if not actions:
+            actions = [Action.from_options(options, '')]
+
         process(context, input, output, options.begin, actions, options.end, options.strict)
     finally:
         if options.in_place:
