@@ -140,6 +140,7 @@ class Context(dict):
 
         self.delim = codecs.decode(options.delim, STRING_ESCAPE) if options.delim else None
         self.odelim = codecs.decode(options.delim_out, STRING_ESCAPE)
+        self.line_separator = codecs.decode(options.line_separator, STRING_ESCAPE)
 
         for m in modules:
             try:
@@ -164,9 +165,9 @@ def process(context, input, output, begin_statement, actions, end_statement, str
             result = context.odelim.join(map(str, result))
         if result is not None and result is not False:
             result = str(result)
+            if not result.endswith(context.line_separator):
+                result = result.rstrip('\n') + context.line_separator
             write(result)
-            if not result.endswith('\n'):
-                write('\n')
 
     try:
         if begin_statement:
@@ -190,6 +191,7 @@ def parse_commandline(argv):
     parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
     parser.add_option('-F', dest='delim', help='input delimiter', metavar='<delim>', default=None)
     parser.add_option('-O', dest='delim_out', help='output delimiter', metavar='<delim>', default=' ')
+    parser.add_option('-L', dest='line_separator', help='output line separator', metavar='<delim>', default='\n')
     parser.add_option('-B', '--begin', help='begin statement', metavar='<statement>')
     parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
     parser.add_option('-s', '--statement', action='store_true', help='DEPRECATED. retained for backward compatibility')

@@ -110,15 +110,19 @@ http://code.activestate.com/recipes/437932/.
 
 Options:
   -h, --help            show this help message and exit
+  -I <filename>, --in_place=<filename>
+                        modify given input file in-place
   -i <modules>, --import=<modules>
                         comma-separated list of modules to "from x import *"
                         from
   -F <delim>            input delimiter
   -O <delim>            output delimiter
+  -L <delim>            output line separator
   -B <statement>, --begin=<statement>
                         begin statement
   -E <statement>, --end=<statement>
                         end statement
+  -s, --statement       DEPRECATED. retained for backward compatibility
   --strict              abort on exceptions
 ```
 
