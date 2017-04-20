@@ -22,7 +22,7 @@ setup(
     name='pawk',
     url='http://github.com/alecthomas/pawk',
     download_url='http://github.com/alecthomas/pawk',
-    version='0.6.3',
+    version='0.6.4',
     description=description,
     long_description=long_description,
     license='PSF',

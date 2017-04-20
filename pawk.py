@@ -17,6 +17,8 @@ import os
 import re
 import sys
 
+from itertools import zip_longest
+
 
 RESULT_VAR_NAME = "__result"
 
@@ -123,10 +125,12 @@ class Action(object):
 
 
 class Context(dict):
-    def apply(self, numz, line):
+    def apply(self, numz, line, headers=None):
         l = line.rstrip()
         f = tuple([w for w in l.split(self.delim) if w])
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
+        if headers:
+            self.update(zip_longest(headers, f))
 
     @classmethod
     def from_options(cls, options, modules):
@@ -151,7 +155,7 @@ class Context(dict):
         return self
 
 
-def process(context, input, output, begin_statement, actions, end_statement, strict):
+def process(context, input, output, begin_statement, actions, end_statement, strict, header):
     """Process a stream."""
     # Override "print"
     old_stdout = sys.stdout
@@ -170,11 +174,17 @@ def process(context, input, output, begin_statement, actions, end_statement, str
             write(result)
 
     try:
+        headers = None
+        if header:
+            line = input.readline()
+            context.apply(-1, line)
+            headers = context['f']
+
         if begin_statement:
             write_result(eval_in_context(compile_command(begin_statement), context))
 
         for numz, line in enumerate(input):
-            context.apply(numz, line)
+            context.apply(numz, line, headers=headers)
             for action in actions:
                 write_result(action.apply(context, line), when_true=line)
 
@@ -195,6 +205,7 @@ def parse_commandline(argv):
     parser.add_option('-B', '--begin', help='begin statement', metavar='<statement>')
     parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
     parser.add_option('-s', '--statement', action='store_true', help='DEPRECATED. retained for backward compatibility')
+    parser.add_option('-H', '--header', action='store_true', help='use first row as field variable names in subsequent rows')
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
     return parser.parse_args(argv[1:])
 
@@ -212,13 +223,13 @@ def run(argv, input, output):
         # Auto-import. This is not smart.
         all_text = ' '.join([(options.begin or ''), ' '.join(args), (options.end or '')])
         modules = re.findall(r'([\w.]+)+(?=\.\w+)\b', all_text)
-    
+
         context = Context.from_options(options, modules)
         actions = [Action.from_options(options, arg) for arg in args]
         if not actions:
             actions = [Action.from_options(options, '')]
 
-        process(context, input, output, options.begin, actions, options.end, options.strict)
+        process(context, input, output, options.begin, actions, options.end, options.strict, options.header)
     finally:
         if options.in_place:
             output.close()

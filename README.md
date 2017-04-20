@@ -74,7 +74,23 @@ PAWK evaluates a Python expression or statement against each line in stdin. The 
 - `nf` - Number of fields in this line.
 - `m` - Tuple of match regular expression capture groups, if any.
 
-Additionally, the `--import <module>[,<module>,...]` flag can be used to import symbols from a set of modules into the evaluation context.
+Additionally, if the flag `-H, --header` is provided, each field in the first row of the input will be treated as field variable names in subsequent rows. The header is not output. For example, given the input:
+
+```
+count name
+12 bob
+34 fred
+```
+
+We could do:
+
+```
+$ pawk -H '"%s is %s" % (name, count)' < input.txt
+bob is 12
+fred is 34
+```
+
+Module references will be automatically imported if possible. Additionally, the `--import <module>[,<module>,...]` flag can be used to import symbols from a set of modules into the evaluation context.
 
 eg. `--import os.path` will import all symbols from `os.path`, such as `os.path.isfile()`, into the context.
 
