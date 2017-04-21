@@ -74,7 +74,12 @@ PAWK evaluates a Python expression or statement against each line in stdin. The 
 - `nf` - Number of fields in this line.
 - `m` - Tuple of match regular expression capture groups, if any.
 
-Additionally, if the flag `-H, --header` is provided, each field in the first row of the input will be treated as field variable names in subsequent rows. The header is not output. For example, given the input:
+
+In the context of the `-E` block:
+
+- `t` - The entire input text.
+
+If the flag `-H, --header` is provided, each field in the first row of the input will be treated as field variable names in subsequent rows. The header is not output. For example, given the input:
 
 ```
 count name
@@ -148,6 +153,8 @@ Options:
   -E <statement>, --end=<statement>
                         end statement
   -s, --statement       DEPRECATED. retained for backward compatibility
+  -H, --header          use first row as field variable names in subsequent
+                        rows
   --strict              abort on exceptions
 ```
 
