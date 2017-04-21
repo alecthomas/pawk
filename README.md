@@ -90,6 +90,15 @@ bob is 12
 fred is 34
 ```
 
+To output a header as well, use `-B`:
+
+```
+$ pawk -H -B '"name is count"' '"%s is %s" % (name, count)' < input.txt
+name is count
+bob is 12
+fred is 34
+```
+
 Module references will be automatically imported if possible. Additionally, the `--import <module>[,<module>,...]` flag can be used to import symbols from a set of modules into the evaluation context.
 
 eg. `--import os.path` will import all symbols from `os.path`, such as `os.path.isfile()`, into the context.
