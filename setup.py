@@ -1,9 +1,15 @@
 import atexit
 import os
+import sys
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
+
+if sys.version_info[0] != 3:
+    print("PAWK requires Python 3")
+    exit(1)
+
 
 try:
     import pypandoc
@@ -22,7 +28,7 @@ setup(
     name='pawk',
     url='http://github.com/alecthomas/pawk',
     download_url='http://github.com/alecthomas/pawk',
-    version='0.6.5',
+    version='0.7.0',
     description=description,
     long_description=long_description,
     license='PSF',
