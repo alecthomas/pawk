@@ -17,19 +17,21 @@ import os
 import re
 import sys
 
-from itertools import zip_longest
-
 
 RESULT_VAR_NAME = "__result"
 
 
 if sys.version_info[0] > 2:
+    from itertools import zip_longest
+    
     try:
         exec_ = __builtins__['exec']
     except TypeError:
         exec_ = getattr(__builtins__, 'exec')
     STRING_ESCAPE = 'unicode_escape'
 else:
+    from itertools import izip_longest as zip_longest
+    
     def exec_(_code_, _globs_=None, _locs_=None):
         if _globs_ is None:
             frame = sys._getframe(1)
