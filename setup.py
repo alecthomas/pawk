@@ -1,6 +1,7 @@
 import atexit
 import os
 import sys
+import pawk
 try:
     from setuptools import setup
 except ImportError:
@@ -28,7 +29,7 @@ setup(
     name='pawk',
     url='http://github.com/alecthomas/pawk',
     download_url='http://github.com/alecthomas/pawk',
-    version='0.7.0',
+    version=pawk.__version__,
     description=description,
     long_description=long_description,
     license='PSF',

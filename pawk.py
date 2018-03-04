@@ -18,6 +18,9 @@ import re
 import sys
 
 
+__version__ = '0.8.0'
+
+
 RESULT_VAR_NAME = "__result"
 
 
@@ -129,7 +132,7 @@ class Action(object):
 class Context(dict):
     def apply(self, numz, line, headers=None):
         l = line.rstrip()
-        f = tuple([w for w in l.split(self.delim) if w])
+        f = [w for w in l.split(self.delim) if w]
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
         if headers:
             self.update(zip_longest(headers, f))
@@ -197,7 +200,7 @@ def process(context, input, output, begin_statement, actions, end_statement, str
 
 
 def parse_commandline(argv):
-    parser = optparse.OptionParser()
+    parser = optparse.OptionParser(version=__version__)
     parser.set_usage(__doc__.strip())
     parser.add_option('-I', '--in_place', dest='in_place', help='modify given input file in-place', metavar='<filename>')
     parser.add_option('-i', '--import', dest='imports', help='comma-separated list of modules to "from x import *" from', metavar='<modules>')
