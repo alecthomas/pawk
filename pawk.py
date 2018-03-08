@@ -132,7 +132,7 @@ class Action(object):
 class Context(dict):
     def apply(self, numz, line, headers=None):
         l = line.rstrip()
-        f = [w for w in l.split(self.delim)]
+        f = l.split(self.delim)
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
         if headers:
             self.update(zip_longest(headers, f))
@@ -150,7 +150,6 @@ class Context(dict):
         self.delim = codecs.decode(options.delim, STRING_ESCAPE) if options.delim else None
         self.odelim = codecs.decode(options.delim_out, STRING_ESCAPE)
         self.line_separator = codecs.decode(options.line_separator, STRING_ESCAPE)
-        self.strict_field_splitting = options.strict_field_splitting
 
         for m in modules:
             try:
@@ -211,7 +210,6 @@ def parse_commandline(argv):
     parser.add_option('-B', '--begin', help='begin statement', metavar='<statement>')
     parser.add_option('-E', '--end', help='end statement', metavar='<statement>')
     parser.add_option('-s', '--statement', action='store_true', help='DEPRECATED. retained for backward compatibility')
-    parser.add_option('-S', '--strict-field-splitting', action='store_true', help='do not remove empty field')
     parser.add_option('-H', '--header', action='store_true', help='use first row as field variable names in subsequent rows')
     parser.add_option('--strict', action='store_true', help='abort on exceptions')
     return parser.parse_args(argv[1:])
