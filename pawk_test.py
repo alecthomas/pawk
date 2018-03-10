@@ -21,6 +21,11 @@ drwxr-x---  6 alec  staff   204 Feb  9 21:09 pawk.egg-info/
 -rw-r-----  1 alec  staff   468 Feb 10 04:42 setup.py
 '''
 
+TEST_INPUT_CSV_WITH_EMPTY_FIELD = r'''
+model,color,price
+A01,,100
+B03,blue,200
+'''
 
 def run_integration_test(input, args):
     input = StringIO(input.strip())
@@ -73,6 +78,13 @@ def test_integration_truth():
 def test_integration_multiple_actions():
     out = run_integration_test(TEST_INPUT_LS, ['/setup/', '/README/'])
     assert [r.split()[-1] for r in out.splitlines()] == ['README.md', 'setup.py']
+
+
+def test_integration_csv_empty_fields():
+    out = run_integration_test(TEST_INPUT_CSV_WITH_EMPTY_FIELD, ['-F,', 'f[2]'])
+    assert out.splitlines() == ['price', '100', '200']
+    out = run_integration_test(TEST_INPUT_CSV_WITH_EMPTY_FIELD, ['-F,', 'f[1]'])
+    assert out.splitlines() == ['color', '', 'blue']
 
 
 def benchmark_fields():

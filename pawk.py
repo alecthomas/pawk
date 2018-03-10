@@ -132,7 +132,7 @@ class Action(object):
 class Context(dict):
     def apply(self, numz, line, headers=None):
         l = line.rstrip()
-        f = [w for w in l.split(self.delim) if w]
+        f = l.split(self.delim)
         self.update(line=line, l=l, n=numz + 1, f=f, nf=len(f))
         if headers:
             self.update(zip_longest(headers, f))
