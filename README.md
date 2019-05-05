@@ -77,7 +77,7 @@ PAWK evaluates a Python expression or statement against each line in stdin. The 
 
 In the context of the `-E` block:
 
-- `t` - The entire input text.
+- `t` - The entire input text up to the current cursor position.
 
 If the flag `-H, --header` is provided, each field in the first row of the input will be treated as field variable names in subsequent rows. The header is not output. For example, given the input:
 
