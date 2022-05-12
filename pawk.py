@@ -53,7 +53,7 @@ def save_last_expression(tree, var_name=RESULT_VAR_NAME):
     body = tree.body
     node = body[-1] if len(body) else None
     body.insert(0, ast.Assign(targets=[ast.Name(id=var_name, ctx=ast.Store())],
-                              value=ast.Name(id="None", ctx=ast.Load())))
+                              value=ast.Constant(None)))
     if node and isinstance(node, ast.Expr):
         body[-1] = ast.copy_location(ast.Assign(
             targets=[ast.Name(id=var_name, ctx=ast.Store())], value=node.value), node)
