@@ -13,6 +13,9 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 
+[tool.poetry.scripts]
+pawk = "pawk:main"
+
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/alecthomas/pawk/issues"
 
